@@ -1,9 +1,8 @@
 <template>
-  <v-app class="">
-    <div class="pa-3">
-
+  <v-app class="home">
+    <h2>Лабораторная работа 1. Нейронная сеть, которая распознает цифры от 0 до 9</h2>
+    <div class="block">
       <v-sheet class="">
-        <h1 class="">Рисовалка</h1>
         <vue-drawing-canvas
           ref="canvas"
           :canvasId="canvas"
@@ -19,26 +18,25 @@
         />
       </v-sheet>
 
-      <v-sheet class="my-2">
+      <v-sheet class="ma-15">
         <div class="mr-4">
-          <v-btn color="primary" @click="$refs.sketch.reset()" class="mr-2"><v-icon>mdi-eraser</v-icon></v-btn>
-          <v-btn color="primary" @click="predict()">Распознать</v-btn>
+          <v-btn color="error" @click="$refs.canvas.reset()" class="mr-2"><v-icon>mdi-eraser</v-icon></v-btn>
+          <v-btn color="success" @click="predict()">Распознать</v-btn>
         </div>
         <div class="mr-4 my-2">
-          <v-btn color="primary" @click="setCross(); recalculateWeights()" class="mr-2">Крестик </v-btn>
-          <v-btn color="primary" @click="setCircle(); recalculateWeights()">Нолик</v-btn>
+          <v-btn color="primary" >Инициализировать веса</v-btn>
         </div>
-        <div class="">
+        <div>
+          <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить датасет</v-btn> 
+          <input multiple accept=".png" v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => loadDataset(e)">
+        </div>
+        <div class="mt-2">
           <v-btn color="primary" @click="save(weightMatrix)">Сохранить веса</v-btn>
         </div>
         <div class="mt-2">
           <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить веса</v-btn> 
           <input v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => processFile(e)">
         </div>        
-        <div class="mt-2">
-          <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить веса</v-btn> 
-          <input v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => processFile(e)">
-        </div>
       </v-sheet>
 
     </div>
@@ -48,6 +46,7 @@
 <script>
 import Vue from 'vue';
 import VueDrawingCanvas from 'vue-drawing-canvas';
+import lodash from 'lodash'
 export default Vue.extend({
   name: 'HomeComponent',
   components: {
@@ -57,7 +56,7 @@ export default Vue.extend({
     image: "",
     width: 150,
     height: 150,
-    line: 25,
+    line: 10,
     canvas: "canvas",
     weights: [],
     errors: 0,
@@ -69,7 +68,7 @@ export default Vue.extend({
     // Загрузка датасета
 async function loadDataset(e) {
   let time = performance.now();
-
+  let _ = require(lodash);
   let files = e.target.files;
   files = Object.values(files);
 
@@ -142,7 +141,9 @@ async function loadDataset(e) {
     ['Всего ошибок', neuron.errors],
     ['Прошло времени', getSeconds()],
   ]);
+  
 }
+
 
   }
 
@@ -151,6 +152,16 @@ async function loadDataset(e) {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+.home {
+  
+}
+.block {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+}
 h3 {
   margin: 40px 0 0;
 }
