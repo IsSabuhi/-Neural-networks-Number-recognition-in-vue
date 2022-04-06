@@ -1,6 +1,6 @@
 <template>
   <v-app class="home">
-    <h2>Лабораторная работа 1. Нейронная сеть, которая распознает цифры от 0 до 9</h2>
+    <h2 class="ma-5">Лабораторная работа 1. Нейронная сеть, которая распознает цифры от 0 до 9</h2>
     <div class="block">
       <v-sheet class="">
         <vue-drawing-canvas
@@ -64,88 +64,100 @@ export default Vue.extend({
     threshold: 0.01,
     imagesCount: 10,
   }),
-  mounted() {
-    // Загрузка датасета
-async function loadDataset(e) {
-  let time = performance.now();
-  let _ = require(lodash);
-  let files = e.target.files;
-  files = Object.values(files);
+  methods: {
+    async loadDataset(e) {
+      let time = performance.now();
+      let _ = require(lodash);
+      let files = e.target.files;
+      files = Object.values(files);
 
-  files = canvas.shuffle(files);
+      files = canvas.shuffle(files);
 
-  let vectorsAndAnswer = [];
+      let vectorsAndAnswer = [];
 
-  const promise = files.map(
-    (file) =>
-      new Promise((resolve) => {
-        const reader = new FileReader();
-        let fileName = file.name;
+      const promise = files.map(
+        (file) =>
+          new Promise((resolve) => {
+            const reader = new FileReader();
+            let fileName = file.name;
 
-        reader.onload = (e) => {
-          let img = new Image();
-          img.onload = () => {
-            canvas.canvas.width = img.width;
-            canvas.canvas.height = img.height;
-            canvas.ctx.drawImage(img, 0, 0);
+            reader.onload = (e) => {
+              let img = new Image();
+              img.onload = () => {
+                canvas.canvas.width = img.width;
+                canvas.canvas.height = img.height;
+                canvas.ctx.drawImage(img, 0, 0);
 
-            const indexCorrect = Number(fileName[0]);
-            let correctAnswers = Array(imagesCount).fill(0);
+                const indexCorrect = Number(fileName[0]);
+                let correctAnswers = Array(imagesCount).fill(0);
 
-            correctAnswers[indexCorrect] = 1;
-            vectorsAndAnswer.push({
-              answer: correctAnswers,
-              vector: canvas.getVectors(),
-            });
+                correctAnswers[indexCorrect] = 1;
+                vectorsAndAnswer.push({
+                  answer: correctAnswers,
+                  vector: canvas.getVectors(),
+                });
 
-            resolve();
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      })
-  );
+                resolve();
+              };
+              img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+          })
+      );
 
-  await Promise.all(promise);
+      await Promise.all(promise);
 
-  let percentCorrect = 0;
-  let prevPercent = 0;
-  let errorRepeat = 0;
+      let percentCorrect = 0;
+      let prevPercent = 0;
+      let errorRepeat = 0;
 
-  let epoch = 0;
+      let epoch = 0;
 
-  do {
-    percentCorrect = neuron.TrainDataset(_.shuffle(vectorsAndAnswer));
+      do {
+        percentCorrect = neuron.TrainDataset(_.shuffle(vectorsAndAnswer));
 
-    if (percentCorrect.toFixed(2) == prevPercent.toFixed(2)) {
-      errorRepeat++;
-    } else {
-      errorRepeat = 0;
+        if (percentCorrect.toFixed(2) == prevPercent.toFixed(2)) {
+          errorRepeat++;
+        } else {
+          errorRepeat = 0;
+        }
+
+        epoch++;
+
+        console.log(percentCorrect);
+        prevPercent = percentCorrect;
+      } while (percentCorrect < 100);
+
+      const getSeconds = () => {
+        let res = (performance.now() - time) / 1000;
+        return Number(res.toFixed(3));
+      };
+
+      console.log('finish');
+      console.table([
+        ['Прошло эпох', epoch],
+        ['Всего образов', vectorsAndAnswer.length],
+        ['Всего ошибок', neuron.errors],
+        ['Прошло времени', getSeconds()],
+      ]);
+        
+    },
+
+    async processFile(e) {
+        try {
+          let file = e.target.files[0];
+          let text = await this.readFileAsync(file);
+          text = text.split(',')
+          text = text.map((n) => Number(n))
+          this.weightMatrix = text
+          console.log('Веса загружены')
+        } catch(err) {
+          console.log(err);
+        }
     }
 
-    epoch++;
 
-    console.log(percentCorrect);
-    prevPercent = percentCorrect;
-  } while (percentCorrect < 100);
-
-  const getSeconds = () => {
-    let res = (performance.now() - time) / 1000;
-    return Number(res.toFixed(3));
-  };
-
-  console.log('finish');
-  console.table([
-    ['Прошло эпох', epoch],
-    ['Всего образов', vectorsAndAnswer.length],
-    ['Всего ошибок', neuron.errors],
-    ['Прошло времени', getSeconds()],
-  ]);
-  
 }
-
-
-  }
 
 });
 </script>
