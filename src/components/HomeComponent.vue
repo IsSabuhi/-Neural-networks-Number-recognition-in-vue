@@ -5,7 +5,7 @@
       <v-sheet class="">
         <vue-drawing-canvas
           ref="canvas"
-          :canvasId="canvas"
+          canvasId="VueCanvasDrawing"
           :image.sync="image"
           :width="width"
           backgroundColor="#fff0"
@@ -35,7 +35,7 @@
         </div>
         <!-- <div class="mt-2">
           <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить веса</v-btn> 
-          <input multiple v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => processFile(e)">
+          <input v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => processFile(e)">
         </div>         -->
       </v-sheet>
 
@@ -53,8 +53,8 @@ export default Vue.extend({
   },
   data: () => ({
     image: "",
-    width: 150,
-    height: 150,
+    width: 50,
+    height: 50,
     line: 10,
     canvas: "canvas",
     weights: [],
@@ -64,7 +64,7 @@ export default Vue.extend({
     imagesCount: 10,
   }),
   methods: {
-    calculateWeights(){
+    calculateWeights() {
       let weightMax = 0.3
       let weightMin = -weightMax
       this.weightMatrix = this.initWeights(this.width, this.height, weightMax, weightMin)
@@ -79,178 +79,48 @@ export default Vue.extend({
       return weights
       
     },
-    shuffle(array) {
-      array.sort(() => Math.random() - 0.5);
-    },
+// Перемешать массив
+  shuffle(arr = []) {
+    let newArr = [];
+
+    for (let i = arr.length - 1; i >= 0; i--) {
+      let id = Math.floor(Math.random() * arr.length);
+      newArr.push(arr[id]);
+      arr.splice(id, 1);
+    }
+
+    return newArr;
+  },
     async loadDataset(e) {
-      let time = performance.now();
-      let _ = require('lodash');
+      let ctx = document.getElementById('VueCanvasDrawing').getContext('2d')
       let files = e.target.files;
       files = Object.values(files);
-      console.log(files)
+      
       files = this.shuffle(files);
-
-      let vectorsAndAnswer = [];
-
+      console.log(files)
+      
       const promise = files.map(
-        (file) =>
-          new Promise((resolve) => {
-            const reader = new FileReader();
-            let fileName = file.name;
+      (file) =>
+      new Promise((resolve) => {
+        const reader = new FileReader();
 
-            reader.onload = (e) => {
-              let img = new Image();
-              img.onload = () => {
-                canvas.canvas.width = img.width;
-                canvas.canvas.height = img.height;
-                canvas.ctx.drawImage(img, 0, 0);
+        reader.onload = (e) => {
+          let img = new Image();
+          img.onload = () => {
+            this.width = img.width;
+            this.height = img.height;
+            ctx.drawImage(img, 0, 0);
 
-                const indexCorrect = Number(fileName[0]);
-                let correctAnswers = Array(imagesCount).fill(0);
-
-                correctAnswers[indexCorrect] = 1;
-                vectorsAndAnswer.push({
-                  answer: correctAnswers,
-                  vector: canvas.getVectors(),
-                });
-
-                resolve();
-              };
-              img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-          })
-      );
-
+            resolve();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      })
+  );
       await Promise.all(promise);
-
-      let percentCorrect = 0;
-      let prevPercent = 0;
-      let errorRepeat = 0;
-
-      let epoch = 0;
-
-      do {
-        percentCorrect = neuron.TrainDataset(_.shuffle(vectorsAndAnswer));
-
-        if (percentCorrect.toFixed(2) == prevPercent.toFixed(2)) {
-          errorRepeat++;
-        } else {
-          errorRepeat = 0;
-        }
-
-        epoch++;
-
-        console.log(percentCorrect);
-        prevPercent = percentCorrect;
-      } while (percentCorrect < 100);
-
-      const getSeconds = () => {
-        let res = (performance.now() - time) / 1000;
-        return Number(res.toFixed(3));
-      };
-
-      console.log('finish');
-      console.table([
-        ['Прошло эпох', epoch],
-        ['Всего образов', vectorsAndAnswer.length],
-        ['Всего ошибок', neuron.errors],
-        ['Прошло времени', getSeconds()],
-      ]);
         
     },
-
-    constructor(imagesRes, neuronNumber, thresholdError, speedLearn) {
-        for (let i = 0; i < neuronNumber; i++) {
-          let weightNeuron = [];
-          for (let j = 0; j < imagesRes * imagesRes; j++) {
-            let randomNumber = Math.random() * (0.31 + 0.31) - 0.31;
-            weightNeuron.push(randomNumber);
-          }
-          this.weights.push(weightNeuron);
-        }
-
-        this.thresholdError = thresholdError;
-        this.speedLearn = speedLearn;
-      },
-
-    // вычисление сигмоиды
-    $sigmoid(sum) {
-      return 1 / (1 + Math.exp(-sum));
-    },
-
-    // производная сигмоиды
-    $sigmoid_derivative(sigmoid) {
-      return sigmoid * (1 - sigmoid);
-    },
-
-    Predict(vector) {
-    let neuronSums = [];
-
-    for (let i = 0, neuronLen = this.weights.length; i < neuronLen; i++) {
-      let sum = 0;
-      for (
-        let j = 0, weightsLen = this.weights[i].length;
-        j < weightsLen;
-        j++
-      ) {
-        sum += vector[j] * this.weights[i][j];
-      }
-
-      neuronSums.push(this.$sigmoid(sum));
-    }
-
-    return neuronSums;
-  },
-
-  Train(vector, correctAnswers) {
-    let answer = this.Predict(vector);
-
-    for (let i = 0, neuronLen = this.weights.length; i < neuronLen; i++) {
-      let weightsDelta = correctAnswers[i] - answer[i];
-
-      for (
-        let j = 0, weightsLen = this.weights[i].length;
-        j < weightsLen;
-        j++
-      ) {
-        if (vector[j] === 1) {
-          this.weights[i][j] += this.speedLearn * weightsDelta * vector[j];
-        }
-      }
-    }
-  },
-
-  TrainDataset(vectorsAndAnswers) {
-    for (let i = 0, arrLen = vectorsAndAnswers.length; i < arrLen; i++) {
-      this.Train(vectorsAndAnswers[i].vector, vectorsAndAnswers[i].answer);
-    }
-
-    let correctCount = 0;
-
-    for (let i = 0, arrLen = vectorsAndAnswers.length; i < arrLen; i++) {
-      let neuronOutput = this.Predict(vectorsAndAnswers[i].vector);
-
-      let sumError = 0;
-      for (let j = 0, outputLen = neuronOutput.length; j < outputLen; j++) {
-        const error = Math.pow(
-          neuronOutput[j] - vectorsAndAnswers[i].answer[j],
-          2
-        );
-        sumError += error;
-      }
-
-      if (sumError < this.thresholdError) correctCount++;
-    }
-
-    console.log(vectorsAndAnswers.length - correctCount + ' ошибок');
-
-    this.errors += vectorsAndAnswers.length - correctCount;
-
-    let correctPercent = (correctCount / vectorsAndAnswers.length) * 100;
-
-    return correctPercent;
-  },
 
     saveWeights() {
     const a = document.createElement('a');
@@ -290,7 +160,7 @@ export default Vue.extend({
 
 }, 
 mounted(){
-    this.calculateWeights()
+    
   }
 
 });
