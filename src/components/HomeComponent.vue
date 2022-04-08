@@ -53,8 +53,8 @@ export default Vue.extend({
   },
   data: () => ({
     image: "",
-    width: 50,
-    height: 50,
+    width: 150,
+    height: 150,
     line: 10,
     canvas: "canvas",
     weights: [],
@@ -91,6 +91,20 @@ export default Vue.extend({
 
     return newArr;
   },
+  imageData(width, height){
+      let context = document.getElementById('VueCanvasDrawing').getContext('2d').getImageData(0, 0, width, height).data
+      let array = Array.from(context)
+      // array.splice(0,3)
+      let newArray = array.filter((_,i) => i % 4 == 0)
+      for (let i = 0; i < newArray.length; i++) {
+        if (newArray[i] == 255){
+          newArray[i] = 0
+        }
+        else newArray[i] = 1
+      }
+      console.log(newArray)
+      return newArray
+    },
     async loadDataset(e) {
       let ctx = document.getElementById('VueCanvasDrawing').getContext('2d')
       let files = e.target.files;
@@ -107,8 +121,7 @@ export default Vue.extend({
         reader.onload = (e) => {
           let img = new Image();
           img.onload = () => {
-            this.width = img.width;
-            this.height = img.height;
+            this.imageData(this.width, this.height)
             ctx.drawImage(img, 0, 0);
 
             resolve();
