@@ -24,7 +24,7 @@
           <v-btn color="success" @click="predict()">Распознать</v-btn>
         </div>
         <div class="mr-4 my-2">
-          <v-btn color="primary" @click="calculateWeights()">Инициализировать веса</v-btn>
+          <v-btn color="primary" @click="initWeights()">Инициализировать веса</v-btn>
         </div>
         <div>
           <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить датасет</v-btn> 
@@ -53,8 +53,9 @@ export default Vue.extend({
   },
   data: () => ({
     image: "",
-    width: 150,
-    height: 150,
+    weights: [],
+    width: 50,
+    height: 50,
     line: 10,
     canvas: "canvas",
     weights: [],
@@ -64,23 +65,20 @@ export default Vue.extend({
     imagesCount: 10,
   }),
   methods: {
-    calculateWeights() {
-      let weightMax = 0.3
-      let weightMin = -weightMax
-      this.weightMatrix = this.initWeights(this.width, this.height, weightMax, weightMin)
+    initWeights() {
+      let neuronNumber = 10
+      for (let i = 0; i < neuronNumber; i++) {
+      let weightNeuron = [];
+        for (let j = 0; j < this.width * this.height; j++) {
+          let randomNumber = Math.random() * (0.31 + 0.31) - 0.31;
+          weightNeuron.push(randomNumber);
+        }
+        this.weights.push(weightNeuron);
+      }      
+      console.log(this.weights)
     },
-    initWeights(width, height, max, min) {
-      let weights = []
-      for (let i = 0; i < width * height; i++) {
-        weights.push(Number((Math.random() * (max - min) + min).toFixed(2)))        
-      }
-      console.log('Веса инициализированы')
-      console.log(weights)
-      return weights
-      
-    },
-// Перемешать массив
-  shuffle(arr = []) {
+  // Перемешать массив
+    shuffle(arr = []) {
     let newArr = [];
 
     for (let i = arr.length - 1; i >= 0; i--) {
@@ -90,8 +88,8 @@ export default Vue.extend({
     }
 
     return newArr;
-  },
-  imageData(width, height){
+    },
+    imageData(width, height){
       let context = document.getElementById('VueCanvasDrawing').getContext('2d').getImageData(0, 0, width, height).data
       let array = Array.from(context)
       // array.splice(0,3)
@@ -105,6 +103,21 @@ export default Vue.extend({
       console.log(newArray)
       return newArray
     },
+    Nsum () {
+      let neuronSums = [];
+      let sum = 0;
+      for (let i = 0, neuronLen = this.weights.length; i < neuronLen; i++) {
+        for (
+          let j = 0, weightsLen = this.weights[i].length;
+          j < weightsLen;
+          j++
+        ) {
+          sum += vector[j] * this.weights[i][j];
+        }
+
+      }
+      return neuronSums;
+    },
     async loadDataset(e) {
       let ctx = document.getElementById('VueCanvasDrawing').getContext('2d')
       let files = e.target.files;
@@ -112,7 +125,7 @@ export default Vue.extend({
       
       files = this.shuffle(files);
       console.log(files)
-      
+        
       const promise = files.map(
       (file) =>
       new Promise((resolve) => {
@@ -129,10 +142,10 @@ export default Vue.extend({
           img.src = e.target.result;
         };
         reader.readAsDataURL(file);
-      })
-  );
+        })
+      );
       await Promise.all(promise);
-        
+          
     },
 
     saveWeights() {
@@ -147,7 +160,7 @@ export default Vue.extend({
     a.click();
 
     URL.revokeObjectURL(a.href);
-  },
+    },
     readFileAsync(file) {
       return new Promise((resolve, reject) => {
         let reader = new FileReader();
@@ -159,21 +172,21 @@ export default Vue.extend({
       })
     },
     async processFile(e) {
-        try {
-          let file = e.target.files[0];
-          let text = await this.readFileAsync(file);
-          text = text.split(',')
-          text = text.map((n) => Number(n))
-          this.weightMatrix = text
-          console.log('Веса загружены')
-        } catch(err) {
-          console.log(err);
-        }
+      try {
+        let file = e.target.files[0];
+        let text = await this.readFileAsync(file);
+        text = text.split(',')
+        text = text.map((n) => Number(n))
+        this.weightMatrix = text
+        console.log('Веса загружены')
+      } catch(err) {
+        console.log(err);
+      }
     },
 
 }, 
 mounted(){
-    
+    this.initWeights() 
   }
 
 });
