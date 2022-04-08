@@ -4,7 +4,7 @@
     <div class="block">
       <v-sheet class="">
         <vue-drawing-canvas
-          ref="canvas"
+          ref="VueCanvasDrawing"
           canvasId="VueCanvasDrawing"
           :image.sync="image"
           :width="width"
@@ -33,6 +33,9 @@
         <div class="mt-2">
           <v-btn color="primary" @click="save(weightMatrix)">Сохранить веса</v-btn>
         </div>
+        <div class="mr-4 my-2">
+          <v-btn color="primary" @click="Nsum()">NSum</v-btn>
+        </div>
         <!-- <div class="mt-2">
           <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить веса</v-btn> 
           <input v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => processFile(e)">
@@ -57,14 +60,11 @@ export default Vue.extend({
     width: 50,
     height: 50,
     line: 10,
-    canvas: "canvas",
-    weights: [],
-    errors: 0,
-    speedLearn: 0.3,
-    threshold: 0.01,
-    imagesCount: 10,
+    imageArray: null,
+    backgroundImage: null,
   }),
   methods: {
+    // Инициализация весов
     initWeights() {
       let neuronNumber = 10
       for (let i = 0; i < neuronNumber; i++) {
@@ -89,6 +89,7 @@ export default Vue.extend({
 
     return newArr;
     },
+    //Функция для преобразования картинок в вектор
     imageData(width, height){
       let context = document.getElementById('VueCanvasDrawing').getContext('2d').getImageData(0, 0, width, height).data
       let array = Array.from(context)
@@ -103,26 +104,11 @@ export default Vue.extend({
       console.log(newArray)
       return newArray
     },
-    Nsum () {
-      let neuronSums = [];
-      let sum = 0;
-      for (let i = 0, neuronLen = this.weights.length; i < neuronLen; i++) {
-        for (
-          let j = 0, weightsLen = this.weights[i].length;
-          j < weightsLen;
-          j++
-        ) {
-          sum += vector[j] * this.weights[i][j];
-        }
-
-      }
-      return neuronSums;
-    },
+    // Функция для загрузки и получения картинок из canvas 
     async loadDataset(e) {
       let ctx = document.getElementById('VueCanvasDrawing').getContext('2d')
       let files = e.target.files;
       files = Object.values(files);
-      
       files = this.shuffle(files);
       console.log(files)
         
@@ -144,9 +130,12 @@ export default Vue.extend({
         reader.readAsDataURL(file);
         })
       );
-      await Promise.all(promise);
-          
+      await Promise.all(promise); 
     },
+    Nsum () {
+      
+    },
+
 
     saveWeights() {
     const a = document.createElement('a');
