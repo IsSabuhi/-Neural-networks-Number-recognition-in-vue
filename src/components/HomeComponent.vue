@@ -5,10 +5,9 @@
       <v-sheet class="">
         <vue-drawing-canvas
           ref="VueCanvasDrawing"
-          canvasId="VueCanvasDrawing"
           :image.sync="image"
+          canvasId="VueCanvasDrawing"
           :width="width"
-          backgroundColor="#fff0"
           :height="height"
           :lineWidth="line"
           saveAs="png"
@@ -21,22 +20,16 @@
       <v-sheet class="ma-15">
         <div class="mr-4">
           <v-btn color="error" @click="$refs.VueCanvasDrawing.reset()" class="mr-2"><v-icon>mdi-eraser</v-icon></v-btn>
-          <v-btn color="success" @click="Predict()">Распознать</v-btn>
+          <v-btn color="success" @click="recognize()">Распознать</v-btn>
         </div>
         <div class="mr-4 my-2">
-          <v-btn color="primary" @click="initWeights(width, numberOfNeurons, 0.3, -0.3)">Инициализировать веса</v-btn>
-        </div>
-        <div>
           <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить датасет</v-btn> 
           <input multiple accept=".png" v-show="false" ref="inputUpload" type="file" id="dataset" @change="(e) => loadDataset(e)">
         </div>
-        <div class="mt-2">
-          <v-btn color="primary" @click="save(weightMatrix)">Сохранить веса</v-btn>
-        </div>
+
         <!-- <div class="mt-2">
-          <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить веса</v-btn> 
-          <input v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => processFile(e)">
-        </div>         -->
+          <v-btn color="primary" @click="save(weightMatrix)">Сохранить веса</v-btn>
+        </div> -->
       </v-sheet>
 
     </div>
@@ -44,40 +37,36 @@
 </template>
 
 <script>
-import Vue from 'vue';
-import VueDrawingCanvas from 'vue-drawing-canvas';
+import VueDrawingCanvas from "vue-drawing-canvas";
+import { indexOf } from "lodash";
 var _ = require("lodash");
-export default Vue.extend({
-  name: 'HomeComponent',
+export default {
+  name: "App",
   components: {
-    VueDrawingCanvas
+    VueDrawingCanvas,
   },
   data: () => ({
     image: "",
-    width: 50,
-    height: 50,
-    line: 5,
+    width: 100,
+    height: 100,
+    line: 8,
     imageArray: null,
     weightMatrix: [],
     numberOfNeurons: 10,
-    learnSpeed: 0.3,
+    learnSpeed: 0.1,
     errors: 0,
-    thresholdError: 0.1,
+    thresholdError: 0.05,
   }),
-
   methods: {
     shuffle(arr = []) {
       let newArr = [];
-
       for (let i = arr.length - 1; i >= 0; i--) {
         let id = Math.floor(Math.random() * arr.length);
         newArr.push(arr[id]);
         arr.splice(id, 1);
       }
-
       return newArr;
     },
-
     async loadDataset(e) {
       let ctx = document.getElementById("VueCanvasDrawing").getContext("2d");
       let files = e.target.files;
@@ -85,19 +74,20 @@ export default Vue.extend({
       files = this.shuffle(files);
       let vectorsAndAnswer = [];
       console.log(files);
-
       const promise = files.map(
         (file) =>
           new Promise((resolve) => {
             const reader = new FileReader();
             let fileName = file.name;
-
             reader.onload = (e) => {
               let img = new Image();
               img.onload = () => {
+                // this.width = img.width;
+                // this.height = img.height;
                 ctx.drawImage(img, 0, 0);
                 const indexCorrect = Number(fileName[0]);
                 let correctAnswers = Array(this.numberOfNeurons).fill(0);
+                // this.imageData(this.width, this.height)
                 correctAnswers[indexCorrect] = 1;
                 vectorsAndAnswer.push({
                   answer: correctAnswers,
@@ -111,107 +101,63 @@ export default Vue.extend({
           })
       );
       await Promise.all(promise);
-
       let percentCorrect = 0;
-
       let epoch = 0;
       do {
         percentCorrect = this.TrainDataset(_.shuffle(vectorsAndAnswer));
-
         epoch++;
-
         console.log(percentCorrect);
       } while (percentCorrect < 100);
-
-      console.log("finish");
+      console.log("Обучение завершено");
+      this.$refs.VueCanvasDrawing.reset();
       console.table([
         ["Прошло эпох", epoch],
         ["Всего образов", vectorsAndAnswer.length],
         ["Всего ошибок", this.errors],
       ]);
     },
-
-    imageData(width, height) {
-      let context = document
-        .getElementById("VueCanvasDrawing")
-        .getContext("2d")
-        .getImageData(0, 0, width, height).data;
-      let array = Array.from(context);
-      let newArray = array.filter((_, i) => i % 4 == 0);
-      for (let i = 0; i < newArray.length; i++) {
-        if (newArray[i] == 255) {
-          newArray[i] = 0;
-        } else newArray[i] = 1;
-      }
-      // console.log(newArray)
-      return newArray;
-    },
-
-    initWeights(canvasSize, numberOfNeurons, max, min) {
-      let weightRes = [];
-      for (let i = 0; i < numberOfNeurons; i++) {
-        let weights = [];
-        for (let j = 0; j < canvasSize ** 2; j++) {
-          let randomNumber = Math.random() * (max - min) + min;
-          weights.push(randomNumber);
-        }
-        weightRes.push(weights);
-      }
-      this.weightMatrix = weightRes;
-      console.log(this.weightMatrix);
-    },
-
     TrainDataset(vectorsAndAnswers) {
       for (let i = 0, arrLen = vectorsAndAnswers.length; i < arrLen; i++) {
         this.Train(vectorsAndAnswers[i].vector, vectorsAndAnswers[i].answer);
       }
       let correctCount = 0;
-
       for (let i = 0, arrLen = vectorsAndAnswers.length; i < arrLen; i++) {
         let neuronOutput = this.Predict(vectorsAndAnswers[i].vector);
-
         let sumError = 0;
         for (let j = 0, outputLen = neuronOutput.length; j < outputLen; j++) {
-          const error = Math.pow(
-            neuronOutput[j] - vectorsAndAnswers[i].answer[j],
-            2
-          );
+          const error = neuronOutput[j] - vectorsAndAnswers[i].answer[j];
           sumError += error;
         }
-
-        if (sumError < this.thresholdError) correctCount++;
+        if (sumError == 0) correctCount++;
       }
       console.log(vectorsAndAnswers.length - correctCount + " ошибок");
       this.errors += vectorsAndAnswers.length - correctCount;
       let correctPercent = (correctCount / vectorsAndAnswers.length) * 100;
       return correctPercent;
     },
-
+    // Расчет дельты и корректировка весов
     Train(vector, correctAnswers) {
       let answer = this.Predict(vector);
-
       for (
         let i = 0, neuronLen = this.weightMatrix.length;
         i < neuronLen;
         i++
       ) {
         let weightsDelta = correctAnswers[i] - answer[i];
-
         for (
           let j = 0, weightsLen = this.weightMatrix[i].length;
           j < weightsLen;
           j++
         ) {
           if (vector[j] === 1) {
-            this.weightMatrix[i][j] +=
-              this.learnSpeed * weightsDelta * vector[j];
+            this.weightMatrix[i][j] += this.learnSpeed * weightsDelta;
           }
         }
       }
     },
+    // Сумматор + функция активации
     Predict(vector) {
       let neuronSums = [];
-
       for (
         let i = 0, neuronLen = this.weightMatrix.length;
         i < neuronLen;
@@ -225,25 +171,53 @@ export default Vue.extend({
         ) {
           sum += vector[j] * this.weightMatrix[i][j];
         }
-
         neuronSums.push(this.threshold(sum));
       }
-
       return neuronSums;
     },
-
     threshold(sum) {
-      return sum >= 0.5 ? 1 : 0;
+      return sum >= 0 ? 1 : 0;
+    },
+    imageData(width, height) {
+      let context = document
+        .getElementById("VueCanvasDrawing")
+        .getContext("2d")
+        .getImageData(0, 0, width, height).data;
+      let array = Array.from(context);
+      let newArray = array.filter((_, i) => i % 4 == 0);
+      for (let i = 0; i < newArray.length; i++) {
+        if (newArray[i] == 255) {
+          newArray[i] = 0;
+        } else newArray[i] = 1;
+      }
+      return newArray;
+    },
+    initWeights(canvasSize, numberOfNeurons, max, min) {
+      let weightRes = [];
+      for (let i = 0; i < numberOfNeurons; i++) {
+        let weights = [];
+        for (let j = 0; j < canvasSize ** 2; j++) {
+          let randomNumber = Math.random() * (max - min) + min;
+          weights.push(randomNumber);
+        }
+        weightRes.push(weights);
+      }
+      this.weightMatrix = weightRes;
+    },
+    recognize() {
+      let imageVector = this.Predict(this.imageData(this.width, this.height));
+      if (!imageVector.includes(1)) return alert("Не распознано");
+      console.log(imageVector);
+      let max = Math.max(...imageVector);
+      alert(imageVector.indexOf(max));
     },
   },
-  mounted(){
+  mounted() {
     this.initWeights(this.width, this.numberOfNeurons, 0.3, -0.3);
-  }
-});
-
+  },
+};
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 .home {
   
