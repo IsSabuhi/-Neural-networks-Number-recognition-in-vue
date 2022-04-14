@@ -11,9 +11,7 @@
           :height="height"
           :lineWidth="line"
           saveAs="png"
-          :styles="{
-            border: 'solid 3px #000',
-          }"
+          :styles="{border: 'solid 3px #000'}"
         />
       </v-sheet>
 
@@ -27,9 +25,14 @@
           <input multiple accept=".png" v-show="false" ref="inputUpload" type="file" id="dataset" @change="(e) => loadDataset(e)">
         </div>
 
-        <!-- <div class="mt-2">
+        <div class="mt-2">
           <v-btn color="primary" @click="save(weightMatrix)">Сохранить веса</v-btn>
-        </div> -->
+        </div>
+
+        <!-- <div class="mt-2">
+          <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить веса</v-btn> 
+          <input v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => processFile(e)">
+        </div>     -->
       </v-sheet>
 
     </div>
@@ -37,23 +40,23 @@
 </template>
 
 <script>
-import VueDrawingCanvas from "vue-drawing-canvas";
-import { indexOf } from "lodash";
-var _ = require("lodash");
+import VueDrawingCanvas from 'vue-drawing-canvas';
+import { indexOf } from 'lodash';
+var _ = require('lodash');
 export default {
-  name: "App",
+  name: 'App',
   components: {
     VueDrawingCanvas,
   },
   data: () => ({
-    image: "",
+    image: '',
     width: 100,
     height: 100,
     line: 8,
     imageArray: null,
     weightMatrix: [],
     numberOfNeurons: 10,
-    learnSpeed: 0.1,
+    learnSpeed: 0.5,
     errors: 0,
     thresholdError: 0.05,
   }),
@@ -68,7 +71,7 @@ export default {
       return newArr;
     },
     async loadDataset(e) {
-      let ctx = document.getElementById("VueCanvasDrawing").getContext("2d");
+      let ctx = document.getElementById('VueCanvasDrawing').getContext('2d');
       let files = e.target.files;
       files = Object.values(files);
       files = this.shuffle(files);
@@ -82,12 +85,9 @@ export default {
             reader.onload = (e) => {
               let img = new Image();
               img.onload = () => {
-                // this.width = img.width;
-                // this.height = img.height;
                 ctx.drawImage(img, 0, 0);
                 const indexCorrect = Number(fileName[0]);
                 let correctAnswers = Array(this.numberOfNeurons).fill(0);
-                // this.imageData(this.width, this.height)
                 correctAnswers[indexCorrect] = 1;
                 vectorsAndAnswer.push({
                   answer: correctAnswers,
@@ -108,12 +108,12 @@ export default {
         epoch++;
         console.log(percentCorrect);
       } while (percentCorrect < 100);
-      console.log("Обучение завершено");
+      console.log('Обучение завершено');
       this.$refs.VueCanvasDrawing.reset();
       console.table([
-        ["Прошло эпох", epoch],
-        ["Всего образов", vectorsAndAnswer.length],
-        ["Всего ошибок", this.errors],
+        ['Прошло эпох', epoch],
+        ['Всего образов', vectorsAndAnswer.length],
+        ['Всего ошибок', this.errors],
       ]);
     },
     TrainDataset(vectorsAndAnswers) {
@@ -122,7 +122,7 @@ export default {
       }
       let correctCount = 0;
       for (let i = 0, arrLen = vectorsAndAnswers.length; i < arrLen; i++) {
-        let neuronOutput = this.Predict(vectorsAndAnswers[i].vector);
+        let neuronOutput = this.Predict(vectorsAndAnswers[i].vector, true);
         let sumError = 0;
         for (let j = 0, outputLen = neuronOutput.length; j < outputLen; j++) {
           const error = neuronOutput[j] - vectorsAndAnswers[i].answer[j];
@@ -130,14 +130,14 @@ export default {
         }
         if (sumError == 0) correctCount++;
       }
-      console.log(vectorsAndAnswers.length - correctCount + " ошибок");
+      console.log(vectorsAndAnswers.length - correctCount + ' ошибок');
       this.errors += vectorsAndAnswers.length - correctCount;
       let correctPercent = (correctCount / vectorsAndAnswers.length) * 100;
       return correctPercent;
     },
-    // Расчет дельты и корректировка весов
+    // Корректировка весов
     Train(vector, correctAnswers) {
-      let answer = this.Predict(vector);
+      let answer = this.Predict(vector, true);
       for (
         let i = 0, neuronLen = this.weightMatrix.length;
         i < neuronLen;
@@ -155,8 +155,7 @@ export default {
         }
       }
     },
-    // Сумматор + функция активации
-    Predict(vector) {
+    Predict(vector, isLearning) {
       let neuronSums = [];
       for (
         let i = 0, neuronLen = this.weightMatrix.length;
@@ -171,7 +170,9 @@ export default {
         ) {
           sum += vector[j] * this.weightMatrix[i][j];
         }
-        neuronSums.push(this.threshold(sum));
+        if (isLearning) {
+          neuronSums.push(this.threshold(sum));
+        } else neuronSums.push(sum);
       }
       return neuronSums;
     },
@@ -180,8 +181,8 @@ export default {
     },
     imageData(width, height) {
       let context = document
-        .getElementById("VueCanvasDrawing")
-        .getContext("2d")
+        .getElementById('VueCanvasDrawing')
+        .getContext('2d')
         .getImageData(0, 0, width, height).data;
       let array = Array.from(context);
       let newArray = array.filter((_, i) => i % 4 == 0);
@@ -205,13 +206,48 @@ export default {
       this.weightMatrix = weightRes;
     },
     recognize() {
-      let imageVector = this.Predict(this.imageData(this.width, this.height));
-      if (!imageVector.includes(1)) return alert("Не распознано");
+      let imageVector = this.Predict(
+        this.imageData(this.width, this.height),
+        false
+      );
+      if (!imageVector.some((x) => x > 0)) return alert('Не распознано');
       console.log(imageVector);
       let max = Math.max(...imageVector);
       alert(imageVector.indexOf(max));
     },
+    save(content) {
+      const a = document.createElement('a');
+      const file = new Blob([content], { type: 'text/plain' });
+      a.href = URL.createObjectURL(file);
+      a.download = 'weights.txt';
+      a.click();
+      console.log('Веса сохранены')
+      URL.revokeObjectURL(a.href);
+    },
+    readFileAsync(file) {
+      return new Promise((resolve, reject) => {
+        let reader = new FileReader();
+        reader.onload = () => {
+          resolve(reader.result);
+        };
+        reader.onerror = reject;
+        reader.readAsText(file);
+      })
+    },
+    async processFile(e) {
+      try {
+        let file = e.target.files[0];
+        let text = await this.readFileAsync(file);
+        text = text.split(',')
+        text = text.map((n) => Number(n))
+        this.weightMatrix = text
+        console.log('Веса загружены')
+      } catch(err) {
+        console.log(err);
+      }
+    }
   },
+  
   mounted() {
     this.initWeights(this.width, this.numberOfNeurons, 0.3, -0.3);
   },
