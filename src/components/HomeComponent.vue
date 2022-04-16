@@ -13,6 +13,16 @@
           saveAs="png"
           :styles="{border: 'solid 3px #000'}"
         />
+      <div class="votpblock">
+        <v-otp-input
+          class="votp"
+          
+          length="1"
+          type="string"
+          v-model="vivod"
+        >   
+        </v-otp-input>
+        </div> 
       </v-sheet>
 
       <v-sheet class="ma-15">
@@ -29,10 +39,10 @@
           <v-btn color="primary" @click="save(weightMatrix)">Сохранить веса</v-btn>
         </div>
 
-        <!-- <div class="mt-2">
+        <div class="mt-2">
           <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить веса</v-btn> 
-          <input v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => processFile(e)">
-        </div>     -->
+          <!-- <input v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => processFile(e)"> -->
+        </div>    
       </v-sheet>
 
     </div>
@@ -56,9 +66,9 @@ export default {
     imageArray: null,
     weightMatrix: [],
     numberOfNeurons: 10,
-    learnSpeed: 0.5,
+    learnSpeed: 0.7,
     errors: 0,
-    thresholdError: 0.05,
+    vivod: ""
   }),
   methods: {
     shuffle(arr = []) {
@@ -71,6 +81,7 @@ export default {
       return newArr;
     },
     async loadDataset(e) {
+      let time = performance.now();
       let ctx = document.getElementById('VueCanvasDrawing').getContext('2d');
       let files = e.target.files;
       files = Object.values(files);
@@ -108,12 +119,18 @@ export default {
         epoch++;
         console.log(percentCorrect);
       } while (percentCorrect < 100);
+
+      const getSeconds = () => {
+        let res = (performance.now() - time) / 1000;
+        return Number(res.toFixed(3));
+      };
       console.log('Обучение завершено');
       this.$refs.VueCanvasDrawing.reset();
       console.table([
         ['Прошло эпох', epoch],
         ['Всего образов', vectorsAndAnswer.length],
         ['Всего ошибок', this.errors],
+        ['Прошло времени', getSeconds()],
       ]);
     },
     TrainDataset(vectorsAndAnswers) {
@@ -213,7 +230,8 @@ export default {
       if (!imageVector.some((x) => x > 0)) return alert('Не распознано');
       console.log(imageVector);
       let max = Math.max(...imageVector);
-      alert(imageVector.indexOf(max));
+      // alert(imageVector.indexOf(max));
+      this.vivod = imageVector.indexOf(max).toString()
     },
     save(content) {
       const a = document.createElement('a');
@@ -265,18 +283,11 @@ export default {
   justify-content: center;
   align-items: center;
 }
-h3 {
-  margin: 40px 0 0;
+.votp {
+  max-width: 115px;
 }
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
+.votpblock span{
+  font-size: 30px;
+  color: red;
 }
 </style>
