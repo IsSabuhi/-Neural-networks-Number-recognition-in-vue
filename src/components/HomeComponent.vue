@@ -16,7 +16,6 @@
       <div class="votpblock">
         <v-otp-input
           class="votp"
-          
           length="1"
           type="string"
           v-model="vivod"
@@ -36,13 +35,21 @@
         </div>
 
         <div class="mt-2">
-          <v-btn color="primary" @click="save(weightMatrix)">Сохранить веса</v-btn>
+          <v-btn color="primary" @click="save()">Сохранить веса</v-btn>
         </div>
 
         <div class="mt-2">
-          <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить веса</v-btn> 
-          <!-- <input v-show="false" ref="inputUpload" type="file" id="load" @change="(e) => processFile(e)"> -->
-        </div>    
+          <v-btn color="primary" @click="$refs.inputWeights.click()">
+            Загрузить веса
+          </v-btn>
+          <input
+            v-show="false"
+            accept=""
+            ref="inputWeights"
+            type="file"
+            @change="(e) => loadWeights(e)"
+          />
+        </div> 
       </v-sheet>
 
     </div>
@@ -50,44 +57,43 @@
 </template>
 
 <script>
-import VueDrawingCanvas from 'vue-drawing-canvas';
-import { indexOf } from 'lodash';
-var _ = require('lodash');
+import VueDrawingCanvas from "vue-drawing-canvas";
+var _ = require("lodash");
 export default {
-  name: 'App',
+  name: "App",
   components: {
     VueDrawingCanvas,
   },
   data: () => ({
-    image: '',
+    image: "",
     width: 100,
     height: 100,
     line: 8,
     imageArray: null,
     weightMatrix: [],
-    numberOfNeurons: 10,
-    learnSpeed: 0.7,
+    Neurons: 10,
+    learnSpeed: 0.3,
     errors: 0,
-    vivod: ""
+    vivod: ''
   }),
   methods: {
     shuffle(arr = []) {
-      let newArr = [];
+      let newArray = [];
       for (let i = arr.length - 1; i >= 0; i--) {
         let id = Math.floor(Math.random() * arr.length);
-        newArr.push(arr[id]);
+        newArray.push(arr[id]);
         arr.splice(id, 1);
       }
-      return newArr;
+      return newArray;
     },
     async loadDataset(e) {
       let time = performance.now();
-      let ctx = document.getElementById('VueCanvasDrawing').getContext('2d');
+      let ctx = document.getElementById("VueCanvasDrawing").getContext("2d");
       let files = e.target.files;
       files = Object.values(files);
       files = this.shuffle(files);
-      let vectorsAndAnswer = [];
-      console.log(files);
+      let vectorsAnswer = [];
+
       const promise = files.map(
         (file) =>
           new Promise((resolve) => {
@@ -96,13 +102,15 @@ export default {
             reader.onload = (e) => {
               let img = new Image();
               img.onload = () => {
+
                 ctx.drawImage(img, 0, 0);
                 const indexCorrect = Number(fileName[0]);
-                let correctAnswers = Array(this.numberOfNeurons).fill(0);
-                correctAnswers[indexCorrect] = 1;
-                vectorsAndAnswer.push({
-                  answer: correctAnswers,
-                  vector: this.imageData(this.width, this.height),
+                let answersImg = Array(this.Neurons).fill(0);
+
+                answersImg[indexCorrect] = 1;
+                vectorsAnswer.push({
+                  answer: answersImg,
+                  ImgVector: this.imgData(this.width, this.height),
                 });
                 resolve();
               };
@@ -115,31 +123,30 @@ export default {
       let percentCorrect = 0;
       let epoch = 0;
       do {
-        percentCorrect = this.TrainDataset(_.shuffle(vectorsAndAnswer));
+        percentCorrect = this.TrainDataset(_.shuffle(vectorsAnswer));
         epoch++;
         console.log(percentCorrect);
-      } while (percentCorrect < 100);
-
+      } while (percentCorrect < 98);
       const getSeconds = () => {
         let res = (performance.now() - time) / 1000;
         return Number(res.toFixed(3));
       };
-      console.log('Обучение завершено');
+      console.log("Обучение завершено");
       this.$refs.VueCanvasDrawing.reset();
       console.table([
-        ['Прошло эпох', epoch],
-        ['Всего образов', vectorsAndAnswer.length],
-        ['Всего ошибок', this.errors],
-        ['Прошло времени', getSeconds()],
+        ["Прошло эпох", epoch],
+        ["Всего образов", vectorsAnswer.length],
+        ["Всего ошибок", this.errors],
+        ["Время обучения", getSeconds()],
       ]);
     },
     TrainDataset(vectorsAndAnswers) {
       for (let i = 0, arrLen = vectorsAndAnswers.length; i < arrLen; i++) {
-        this.Train(vectorsAndAnswers[i].vector, vectorsAndAnswers[i].answer);
+        this.Train(vectorsAndAnswers[i].ImgVector, vectorsAndAnswers[i].answer);
       }
       let correctCount = 0;
       for (let i = 0, arrLen = vectorsAndAnswers.length; i < arrLen; i++) {
-        let neuronOutput = this.Predict(vectorsAndAnswers[i].vector, true);
+        let neuronOutput = this.Predict(vectorsAndAnswers[i].ImgVector, true);
         let sumError = 0;
         for (let j = 0, outputLen = neuronOutput.length; j < outputLen; j++) {
           const error = neuronOutput[j] - vectorsAndAnswers[i].answer[j];
@@ -147,32 +154,31 @@ export default {
         }
         if (sumError == 0) correctCount++;
       }
-      console.log(vectorsAndAnswers.length - correctCount + ' ошибок');
+      console.log(vectorsAndAnswers.length - correctCount + " ошибок");
       this.errors += vectorsAndAnswers.length - correctCount;
       let correctPercent = (correctCount / vectorsAndAnswers.length) * 100;
       return correctPercent;
     },
-    // Корректировка весов
-    Train(vector, correctAnswers) {
-      let answer = this.Predict(vector, true);
+    Train(ImgVector, answersImg) {
+      let answer = this.Predict(ImgVector, true);
       for (
         let i = 0, neuronLen = this.weightMatrix.length;
         i < neuronLen;
         i++
       ) {
-        let weightsDelta = correctAnswers[i] - answer[i];
+        let weightsDelta = answersImg[i] - answer[i];
         for (
           let j = 0, weightsLen = this.weightMatrix[i].length;
           j < weightsLen;
           j++
         ) {
-          if (vector[j] === 1) {
+          if (ImgVector[j] === 1 && weightsDelta != 0) {
             this.weightMatrix[i][j] += this.learnSpeed * weightsDelta;
           }
         }
       }
     },
-    Predict(vector, isLearning) {
+    Predict(ImgVector, Learning) {
       let neuronSums = [];
       for (
         let i = 0, neuronLen = this.weightMatrix.length;
@@ -185,9 +191,9 @@ export default {
           j < weightsLen;
           j++
         ) {
-          sum += vector[j] * this.weightMatrix[i][j];
+          sum += ImgVector[j] * this.weightMatrix[i][j];
         }
-        if (isLearning) {
+        if (Learning) {
           neuronSums.push(this.threshold(sum));
         } else neuronSums.push(sum);
       }
@@ -196,10 +202,10 @@ export default {
     threshold(sum) {
       return sum >= 0 ? 1 : 0;
     },
-    imageData(width, height) {
+    imgData(width, height) {
       let context = document
-        .getElementById('VueCanvasDrawing')
-        .getContext('2d')
+        .getElementById("VueCanvasDrawing")
+        .getContext("2d")
         .getImageData(0, 0, width, height).data;
       let array = Array.from(context);
       let newArray = array.filter((_, i) => i % 4 == 0);
@@ -210,9 +216,9 @@ export default {
       }
       return newArray;
     },
-    initWeights(canvasSize, numberOfNeurons, max, min) {
+    initWeights(canvasSize, Neurons, max, min) {
       let weightRes = [];
-      for (let i = 0; i < numberOfNeurons; i++) {
+      for (let i = 0; i < Neurons; i++) {
         let weights = [];
         for (let j = 0; j < canvasSize ** 2; j++) {
           let randomNumber = Math.random() * (max - min) + min;
@@ -224,58 +230,47 @@ export default {
     },
     recognize() {
       let imageVector = this.Predict(
-        this.imageData(this.width, this.height),
+        this.imgData(this.width, this.height),
         false
       );
-      if (!imageVector.some((x) => x > 0)) return alert('Не распознано');
+      if (!imageVector.some((x) => x > 0)) return alert("Не распознано");
       console.log(imageVector);
       let max = Math.max(...imageVector);
-      // alert(imageVector.indexOf(max));
       this.vivod = imageVector.indexOf(max).toString()
     },
-    save(content) {
-      const a = document.createElement('a');
-      const file = new Blob([content], { type: 'text/plain' });
+    save() {
+      const a = document.createElement("a");
+      let data = JSON.stringify(this.weightMatrix);
+      const file = new Blob([data], { type: "application/json" });
       a.href = URL.createObjectURL(file);
-      a.download = 'weights.txt';
+      a.download = "weights.json";
       a.click();
-      console.log('Веса сохранены')
       URL.revokeObjectURL(a.href);
     },
-    readFileAsync(file) {
-      return new Promise((resolve, reject) => {
-        let reader = new FileReader();
-        reader.onload = () => {
-          resolve(reader.result);
-        };
-        reader.onerror = reject;
-        reader.readAsText(file);
-      })
+    loadWeights(e) {
+      const file = e.target.files[0];
+      let reader = new FileReader();
+      reader.readAsText(file);
+      let context = this;
+      reader.onload = function () {
+        let res = reader.result;
+        context.weightMatrix = JSON.parse(res);
+        console.log("Веса загружены");
+        console.log(context.weightMatrix);
+      };
+      reader.onerror = function () {
+        console.log(reader.error);
+        return;
+      };
     },
-    async processFile(e) {
-      try {
-        let file = e.target.files[0];
-        let text = await this.readFileAsync(file);
-        text = text.split(',')
-        text = text.map((n) => Number(n))
-        this.weightMatrix = text
-        console.log('Веса загружены')
-      } catch(err) {
-        console.log(err);
-      }
-    }
   },
-  
   mounted() {
-    this.initWeights(this.width, this.numberOfNeurons, 0.3, -0.3);
+    this.initWeights(this.width, this.Neurons, 0.3, -0.3);
   },
 };
 </script>
 
 <style scoped>
-.home {
-  
-}
 .block {
   display: flex;
   flex-direction: row;
