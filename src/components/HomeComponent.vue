@@ -1,6 +1,8 @@
 <template>
   <v-app class="home">
-    <h2 class="ma-5">Лабораторная работа 1. Нейронная сеть, которая распознает цифры от 0 до 9</h2>
+    <h2 class="ma-5">
+      Лабораторная работа 1. Нейронная сеть, которая распознает цифры от 0 до 9
+    </h2>
     <div class="block">
       <v-sheet class="">
         <vue-drawing-canvas
@@ -11,27 +13,43 @@
           :height="height"
           :lineWidth="line"
           saveAs="png"
-          :styles="{border: 'solid 3px #000'}"
+          :styles="{ border: 'solid 3px #000' }"
         />
-      <div class="votpblock">
-        <v-otp-input
-          class="votp"
-          length="1"
-          type="string"
-          v-model="vivod"
-        >   
-        </v-otp-input>
-        </div> 
+        <div class="votpblock">
+          <v-otp-input
+            class="votp"
+            ref="otpinput"
+            length="1"
+            type="string"
+            v-model="vivod"
+          >
+          </v-otp-input>
+        </div>
       </v-sheet>
 
       <v-sheet class="ma-15">
         <div class="mr-4">
-          <v-btn color="error" @click="$refs.VueCanvasDrawing.reset()" class="mr-2"><v-icon>mdi-eraser</v-icon></v-btn>
+          <v-btn
+            color="error"
+            @click="$refs.VueCanvasDrawing.reset()"
+            class="mr-2"
+            ><v-icon>mdi-eraser</v-icon></v-btn
+          >
           <v-btn color="success" @click="recognize()">Распознать</v-btn>
         </div>
         <div class="mr-4 my-2">
-          <v-btn color="primary" @click="$refs.inputUpload.click()">Загрузить датасет</v-btn> 
-          <input multiple accept=".png" v-show="false" ref="inputUpload" type="file" id="dataset" @change="(e) => loadDataset(e)">
+          <v-btn color="primary" @click="$refs.inputUpload.click()"
+            >Загрузить датасет</v-btn
+          >
+          <input
+            multiple
+            accept=".png"
+            v-show="false"
+            ref="inputUpload"
+            type="file"
+            id="dataset"
+            @change="(e) => loadDataset(e)"
+          />
         </div>
 
         <div class="mt-2">
@@ -49,9 +67,31 @@
             type="file"
             @change="(e) => loadWeights(e)"
           />
-        </div> 
+        </div>
       </v-sheet>
-
+      <v-simple-table>
+    <template v-slot:default>
+      <thead>
+        <tr>
+          <th class="text-left">
+            Название
+          </th>
+          <th class="text-left">
+            Значение
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          v-for="item in desserts"
+          :key="item.id"
+        >
+          <td>{{ item.title }}</td>
+          <td>{{ item.value }}</td>
+        </tr>
+      </tbody>
+    </template>
+  </v-simple-table>
     </div>
   </v-app>
 </template>
@@ -72,9 +112,28 @@ export default {
     imageArray: null,
     weightMatrix: [],
     Neurons: 10,
-    learnSpeed: 0.3,
+    learnSpeed: 0.2,
     errors: 0,
-    vivod: ''
+    vivod: "",
+    desserts: [
+      {
+        title: 'Прошло эпох',
+        value: 0,
+      },
+      {
+        title: 'Всего образов',
+        value: 0,
+      },
+      {
+        title: 'Всего ошибок',
+        value: 0,
+      },
+      {
+        title: 'Время обучения',
+        value: 0,
+      },
+    ],
+    
   }),
   methods: {
     shuffle(arr = []) {
@@ -102,7 +161,6 @@ export default {
             reader.onload = (e) => {
               let img = new Image();
               img.onload = () => {
-
                 ctx.drawImage(img, 0, 0);
                 const indexCorrect = Number(fileName[0]);
                 let answersImg = Array(this.Neurons).fill(0);
@@ -133,6 +191,10 @@ export default {
       };
       console.log("Обучение завершено");
       this.$refs.VueCanvasDrawing.reset();
+      this.desserts[0].value = epoch;
+      this.desserts[1].value = vectorsAnswer.length;
+      this.desserts[2].value = this.errors;
+      this.desserts[3].value = getSeconds();
       console.table([
         ["Прошло эпох", epoch],
         ["Всего образов", vectorsAnswer.length],
@@ -236,7 +298,7 @@ export default {
       if (!imageVector.some((x) => x > 0)) return alert("Не распознано");
       console.log(imageVector);
       let max = Math.max(...imageVector);
-      this.vivod = imageVector.indexOf(max).toString()
+      this.vivod = imageVector.indexOf(max).toString();
     },
     save() {
       const a = document.createElement("a");
@@ -281,7 +343,7 @@ export default {
 .votp {
   max-width: 115px;
 }
-.votpblock span{
+.votpblock span {
   font-size: 30px;
   color: red;
 }
