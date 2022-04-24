@@ -112,7 +112,7 @@ export default {
     imageArray: null,
     weightMatrix: [],
     Neurons: 10,
-    learnSpeed: 0.2,
+    learnSpeed: 0.4,
     errors: 0,
     vivod: "",
     desserts: [
